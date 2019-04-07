@@ -1,6 +1,7 @@
 from socket import AF_INET, socket, SOCK_STREAM
 from threading import Thread
 import arcade
+import util
 
 
 class ClientWindow(arcade.Window):
@@ -24,15 +25,14 @@ class ClientWindow(arcade.Window):
     def receive(self, name):
         """Handles receiving of messages."""
         self.send(name)
+        remainder = ""
         while True:
-            try:
-                msg = self.client_socket.recv(self.BUFSIZ).decode("utf8")
+            (msg, remainder) = util.receive_line(self.client_socket, remainder)
+            if msg:
                 if msg == '{quit}':
                     break
                 else:
-                    self.on_message_received(msg)
-            except OSError:
-                break
+                    self.on_message_received(line)
 
         self.client_socket.close()
         self.client_socket = None
@@ -41,7 +41,7 @@ class ClientWindow(arcade.Window):
     def send(self, msg):
         """Handles sending of messages."""
         if self.client_socket is not None:
-            self.client_socket.send(bytes(msg, "utf8"))
+            self.client_socket.sendall(bytes(msg+"\n", "utf8"))
 
     def on_message_received(self, message):
         pass

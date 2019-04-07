@@ -2,6 +2,7 @@ from socket import AF_INET, socket, SOCK_STREAM, timeout
 from threading import Thread
 from contextlib import contextmanager
 import arcade
+import util
 
 class ServerWindow(arcade.Window):
     PORT = 33001
@@ -59,23 +60,24 @@ class ServerWindow(arcade.Window):
 
     def handle_client(self, client):
         """Handles a single client connection."""
-        name = client.recv(self.BUFSIZ).decode("utf8")
+        (name, remainder) = util.receive_line(client)
         self.clients[client] = name
 
         while self.running:
             try:
-                msg = client.recv(self.BUFSIZ).decode("utf8")
+                msg, remainder = util.receive_line(client, remainder)
             except timeout:
                 pass
             else:
-                if msg == "{quit}":
-                    print("{} is disconnecting.".format(name))
-                    client.send(bytes("{quit}", "utf8"))
-                    client.close()
-                    del self.clients[client]
-                    break
-                else:
-                    self.on_message_received(name, msg)
+                if msg:
+                    if msg == "{quit}":
+                        print("{} is disconnecting.".format(name))
+                        client.sendall(bytes("{quit}\n", "utf8"))
+                        client.close()
+                        del self.clients[client]
+                        break
+                    else:
+                        self.on_message_received(name, msg)
 
         client.close()
 
@@ -87,7 +89,7 @@ class ServerWindow(arcade.Window):
         clients = [client for client, name in self.clients.items() if name in names]
 
         for sock in clients:
-            sock.send(bytes(msg, "utf8"))
+            sock.sendall(bytes(msg + "\n", "utf8"))
 
     def on_message_received(self, name, message):
         pass
